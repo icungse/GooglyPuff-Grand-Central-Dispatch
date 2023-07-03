@@ -88,12 +88,15 @@ final class PhotoManager {
   func downloadPhotos(withCompletion completion: BatchPhotoDownloadingCompletionClosure?) {
       var storedError: NSError?
       let downloadGroup = DispatchGroup()
-      
-      for address in [
+      let addresses = [
         PhotoURLString.overlyAttachedGirlfriend,
         PhotoURLString.successKid,
         PhotoURLString.lotsOfFaces
-      ] {
+      ]
+      
+      let _ = DispatchQueue.global(qos: .userInitiated)
+      DispatchQueue.concurrentPerform(iterations: addresses.count) { index in
+          let address = addresses[index]
           guard let url = URL(string: address) else {
               return
           }
@@ -103,10 +106,8 @@ final class PhotoManager {
               storedError = error
               downloadGroup.leave()
           }
-          
           PhotoManager.shared.addPhoto(photo)
       }
-      
       downloadGroup.notify(queue: .main) {
           completion?(storedError)
       }
