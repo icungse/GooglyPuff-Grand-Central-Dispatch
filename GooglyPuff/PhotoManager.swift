@@ -68,7 +68,6 @@ final class PhotoManager {
   }
 
   func addPhoto(_ photo: Photo) {
-    unsafePhotos.append(photo)
     concurrentPhotoQueue.async(flags: .barrier) { [weak self] in
         guard let self = self else {
             return
@@ -87,24 +86,30 @@ final class PhotoManager {
   }
 
   func downloadPhotos(withCompletion completion: BatchPhotoDownloadingCompletionClosure?) {
-    var storedError: NSError?
-    for address in [
-      PhotoURLString.overlyAttachedGirlfriend,
-      PhotoURLString.successKid,
-      PhotoURLString.lotsOfFaces
-    ] {
-      guard let url = URL(string: address) else {
-        return
+      var storedError: NSError?
+      let downloadGroup = DispatchGroup()
+      
+      for address in [
+        PhotoURLString.overlyAttachedGirlfriend,
+        PhotoURLString.successKid,
+        PhotoURLString.lotsOfFaces
+      ] {
+          guard let url = URL(string: address) else {
+              return
+          }
+          
+          downloadGroup.enter()
+          let photo = DownloadPhoto(url: url) { _, error in
+              storedError = error
+              downloadGroup.leave()
+          }
+          
+          PhotoManager.shared.addPhoto(photo)
       }
-      let photo = DownloadPhoto(url: url) { _, error in
-        if let error = error {
-          storedError = error
-        }
+      
+      downloadGroup.notify(queue: .main) {
+          completion?(storedError)
       }
-      PhotoManager.shared.addPhoto(photo)
-    }
-
-    completion?(storedError)
   }
 
   private func postContentAddedNotification() {
