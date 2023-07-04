@@ -68,7 +68,6 @@ final class PhotoManager {
   }
 
   func addPhoto(_ photo: Photo) {
-    unsafePhotos.append(photo)
     concurrentPhotoQueue.async(flags: .barrier) { [weak self] in
         guard let self = self else {
             return
@@ -87,24 +86,50 @@ final class PhotoManager {
   }
 
   func downloadPhotos(withCompletion completion: BatchPhotoDownloadingCompletionClosure?) {
-    var storedError: NSError?
-    for address in [
-      PhotoURLString.overlyAttachedGirlfriend,
-      PhotoURLString.successKid,
-      PhotoURLString.lotsOfFaces
-    ] {
-      guard let url = URL(string: address) else {
-        return
+      var storedError: NSError?
+      let downloadGroup = DispatchGroup()
+      var addresses = [
+        PhotoURLString.overlyAttachedGirlfriend,
+        PhotoURLString.successKid,
+        PhotoURLString.lotsOfFaces
+      ]
+      
+      addresses += addresses + addresses
+      
+      var blocks: [DispatchWorkItem] = []
+      
+      for index in 0..<addresses.count {
+          downloadGroup.enter()
+          
+          let block = DispatchWorkItem(flags: .inheritQoS) {
+              let address = addresses[index]
+              guard let url = URL(string: address) else {
+                  downloadGroup.leave()
+                  return
+              }
+              
+              let photo = DownloadPhoto(url: url) { _, error in
+                  storedError = error
+                  downloadGroup.leave()
+              }
+              PhotoManager.shared.addPhoto(photo)
+          }
+          
+          blocks.append(block)
+          DispatchQueue.main.async(execute: block)
       }
-      let photo = DownloadPhoto(url: url) { _, error in
-        if let error = error {
-          storedError = error
-        }
+      
+      for block in blocks[3..<blocks.count] {
+          let cancel = Bool.random()
+          if cancel {
+              block.cancel()
+              downloadGroup.leave()
+          }
       }
-      PhotoManager.shared.addPhoto(photo)
-    }
-
-    completion?(storedError)
+      
+      downloadGroup.notify(queue: .main) {
+          completion?(storedError)
+      }
   }
 
   private func postContentAddedNotification() {
