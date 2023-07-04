@@ -7,3 +7,7 @@ Learn Grand Central Dispatch from [Kodeco-Grand Central Dispatch Tutorial for Sw
 - Multithreading
 - Dispatch queues
 - Concurrency
+- Dispatch groups
+- Canceling dispatch blocks
+- Asynchronous testing techniques
+- Dispatch sources
