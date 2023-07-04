@@ -48,7 +48,25 @@ class GooglyPuffTests: XCTestCase {
     downloadImageURL(withString: PhotoURLString.overlyAttachedGirlfriend)
   }
 
-  func downloadImageURL(withString urlString: String) {
-    XCTFail("Not implemented!")
-  }
+    func downloadImageURL(withString urlString: String) {
+        do {
+            let url = try XCTUnwrap(URL(string: urlString))
+            let semaphore = DispatchSemaphore(value: 0)
+            _ = DownloadPhoto(url: url) { _, error in
+                if let error = error {
+                    XCTFail("\(urlString) failed. \(error.localizedDescription)")
+                }
+
+                semaphore.signal()
+            }
+
+            let timeout = DispatchTime.now() + .seconds(defaultTimeoutLengthInSeconds)
+
+            if semaphore.wait(timeout: timeout) == .timedOut {
+                XCTFail("Not implemented!")
+            }
+        } catch {
+            XCTFail("Fail unwrap URL!")
+        }
+    }
 }
